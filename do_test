@@ -43,7 +43,7 @@ _on_exit() {
             exit 0
         fi
     else
-        echo >&2 " *** fatal error occured ***"
+        echo >&2 " *** fatal error occurred ***"
         exit 1
     fi
 }
