@@ -6,7 +6,7 @@ shopt -s extglob nullglob globstar
 
 # Any of these patterns will be removed from a filename before extracting its
 # first number
-NON_NUMBERS=( '#S[0-9][0-9]' )
+NON_NUMBERS=()
 # mpv binary
 MPV=( ${MPV:-mpv} )
 # Additional options to pass to mpv
@@ -32,8 +32,7 @@ _MPV_PER_FILE_OPTS=()
 # Extensions globs, form is “@(ext1|ext2|…|EXT1|EXT2|…)”.
 unset _SUB_EXT_GLOB
 unset _AUDIO_EXT_GLOB
-# Media file glob, form is either “*.@(…)” or “**/*.@(…)”.
-unset _MEDIA_GLOB
+unset _MEDIA_EXT_GLOB
 
 ################################################################################
 
@@ -42,7 +41,7 @@ unset _MEDIA_GLOB
 # TAKES:
 #     $1 — variable name to assign answer to
 # [rest] — function and, optionally, arguments
-assign() {
+ret() {
     declare -n _ans=$1
     "${@:2}"
 }
@@ -63,24 +62,31 @@ make_extension_glob() {
     printf -v _ans '@(%s)' "${_ans%|}"
 }
 
-# Removes extension and all patterns from NON_NUMBERS from a filename, and then
-# assigns its first number (or “-1”) to $_ans.
+# Removes
+#     1) trailing “/”
+#     2) directory
+#     3) extension
+#     4) all patterns from NON_NUMBERS
+# from a filename, and then assigns its first number (or “-1”) to $_ans.
 # TAKES:
 #     $1 — file name
 extract_first_number() {
-    local pattern basename=${1%.*}
-    local clean_basename=$basename
+    local pattern basename=$1 orig_basename=$1
 
     # In some reason this is slightly faster than “[[ -v … ]]”.
-    if [[ -n ${_EFN_CACHE[$basename]+t} ]]; then
-        _ans=${_EFN_CACHE[$basename]}
+    if [[ -n ${_EFN_CACHE[$orig_basename]+t} ]]; then
+        _ans=${_EFN_CACHE[$orig_basename]}
         return
     fi
 
+    basename=${basename%/}
+    basename=${basename##*/}
+    basename=${basename%.*}
+
     for pattern in "${NON_NUMBERS[@]}"; do
-        clean_basename=${clean_basename/$pattern/}
+        basename=${basename/$pattern/}
     done
-    if [[ $clean_basename =~ [0-9]+ ]]; then
+    if [[ $basename =~ [0-9]+ ]]; then
         # — ${…##+(0)} → drop leading zeroes
         # — printf substitutes “0” if got an empty string with “%d”, so “0” is
         #     substituted if all zeroes were leading
@@ -88,28 +94,58 @@ extract_first_number() {
     else
         _ans=-1
     fi
-    _EFN_CACHE[$basename]=$_ans
+    _EFN_CACHE[$orig_basename]=$_ans
 }
 
+# Appends elements to array $_ans.
 # TAKES:
-#     $@ — already alphabetically sorted file list
-alphabetic_sort() {
-    _MPV_FILES=( "$@" )
+#     $@ — elements to append to array
+append_to_array() {
+    _ans+=( "$@" )
 }
 
+# Appends elements sorted by extract_first_number to array $_ans.
 # TAKES:
-#     $@ — file list
-numeric_sort() {
+#     $@ — elements to sort and append to array
+numeric_sort_and_apppend_to_array() {
     local columns
-    _MPV_FILES=()
 
     while IFS= read -rd '' columns; do
-        _MPV_FILES+=( "${columns#* }" )
+        _ans+=( "${columns#* }" )
     done < <(
         for file; do
-            assign first_number extract_first_number "$file"
+            ret first_number extract_first_number "$file"
             printf '%s %s\0' "$first_number" "$file"
         done | sort -z -n -t' ' -k1,1)
+}
+
+# Adds all files from current directory with extension matches $_MEDIA_EXT_GLOB
+# to _MPV_FILES using specified function.
+# TAKES:
+#     $1 — function name
+add() {
+    ret _MPV_FILES "$1" *.$_MEDIA_EXT_GLOB
+}
+
+# Adds all files from $2 or the current directory with extension matches
+# $_MEDIA_EXT_GLOB to _MPV_FILES using specified function, then calls that
+# function on all directories found in $2 or the current directory and then
+# recursively calls itself on each of found directories.
+# TAKES:
+#     $1  — function name
+#    [$2] — directory, with trailing “/”
+recursive_add() {
+    local func=$1 prefix=$2
+
+    ret _MPV_FILES "$func" "$prefix"*.$_MEDIA_EXT_GLOB
+
+    local -a sorted_dirs
+    ret sorted_dirs "$func" "$prefix"*/
+
+    local dir
+    for dir in "${sorted_dirs[@]}"; do
+        recursive_add "$func" "$dir"
+    done
 }
 
 # Finds directories with subtitles and adds --sub-paths=… to MPV_OPTS.
@@ -147,7 +183,7 @@ generate_per_file_opts() {
     add_something_numeric() {
         local option=$1 extglob=$2
         local media_first_number smth_first_number prefix smth
-        assign media_first_number extract_first_number "${file##*/}"
+        ret media_first_number extract_first_number "$file"
         if (( media_first_number == -1 )); then
             return
         fi
@@ -158,7 +194,7 @@ generate_per_file_opts() {
         for smth in "$prefix"**/*"$media_first_number"*.$extglob; do
             # Is that really a file?
             [[ -f $smth ]] || continue
-            assign smth_first_number extract_first_number "${smth##*/}"
+            ret smth_first_number extract_first_number "$smth"
             if (( media_first_number == smth_first_number )); then
                 options+=( "$option=$smth" )
             fi
@@ -283,20 +319,20 @@ elif [[ -v opt_profile ]]; then
     echo >&2 "W: “-p” passed, but no rc file found."
 fi
 
-assign _SUB_EXT_GLOB   make_extension_glob "${SUB_EXTS[@]}"
-assign _AUDIO_EXT_GLOB make_extension_glob "${AUDIO_EXTS[@]}"
-
-assign _MEDIA_GLOB     make_extension_glob "${MEDIA_EXTS[@]}"
-if (( opt_flag_recursive )); then
-    _MEDIA_GLOB="**/*.$_MEDIA_GLOB"
-else
-    _MEDIA_GLOB="*.$_MEDIA_GLOB"
-fi
+ret _SUB_EXT_GLOB   make_extension_glob "${SUB_EXTS[@]}"
+ret _AUDIO_EXT_GLOB make_extension_glob "${AUDIO_EXTS[@]}"
+ret _MEDIA_EXT_GLOB make_extension_glob "${MEDIA_EXTS[@]}"
 
 if (( opt_flag_numeric_sort )); then
-    numeric_sort $_MEDIA_GLOB
+    func=numeric_sort_and_apppend_to_array
 else
-    alphabetic_sort $_MEDIA_GLOB
+    func=append_to_array
+fi
+
+if (( opt_flag_recursive )); then
+    recursive_add "$func"
+else
+    add "$func"
 fi
 
 if (( opt_flag_pass_subpaths )); then
