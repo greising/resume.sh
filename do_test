@@ -199,6 +199,7 @@ check -a'-n' -c'NON_NUMBERS=("+([0-9])")' season1_ep{1,12}.mkv
 
 check -v
 check -v sound.mp3 unrelated-file
+check -v folder.mkv/
 
 check        file.mkv foo/file.mkv // file.mkv
 check -a'-r' file.mkv foo/file.mkv
