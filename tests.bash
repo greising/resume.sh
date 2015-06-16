@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 @test_dash_starting_filenames() {
     setup -file-starts-with-dash.mkv
     local -a out

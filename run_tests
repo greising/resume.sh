@@ -9,7 +9,7 @@ if ! [[ -x $RESUME ]]; then
     echo >&2 "E: '$RESUME' does not exist or is not an executable file."
     exit 1
 fi
-TESTS_FILE=$WORKDIR/tests
+TESTS_FILE=$WORKDIR/tests.bash
 
 FAKE_MPV='printf %s\0'
 FAKE_HOME=$(mktemp -d)
