@@ -78,6 +78,7 @@ run_get_output() {
     declare -n _ans=$1
     MPV=$FAKE_MPV HOME=$FAKE_HOME "$RESUME" "${TEST_LOCAL_RESUME_ARGS[@]}" \
         >"$OUTPUT_FILE"
+    local code=$?
     (( code != 0 )) && @fail "non-zero exit code ${code}"
     while IFS= read -rd '' line; do
         _ans+=( "$line" )
