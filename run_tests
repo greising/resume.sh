@@ -9,6 +9,7 @@ if ! [[ -x $RESUME ]]; then
     echo >&2 "E: '$RESUME' does not exist or is not an executable file."
     exit 1
 fi
+TESTS_FILE=$WORKDIR/tests
 
 FAKE_MPV='printf %s\0'
 FAKE_HOME=$(mktemp -d)
@@ -45,7 +46,6 @@ setup() {
     for file; do
         if [[ $file == */ ]]; then
             mkdir -p -- "$file" || exit "$?"
-            continue
         else
             if [[ $file == */* ]]; then
                 local dirname=${file%/*}
@@ -66,9 +66,12 @@ set_arguments() {
     TEST_LOCAL_RESUME_ARGS=( "$@" )
 }
 
+_run_resume() {
+    MPV=$FAKE_MPV HOME=$FAKE_HOME "$RESUME" "${TEST_LOCAL_RESUME_ARGS[@]}"
+}
+
 run_check_fail() {
-    MPV=$FAKE_MPV HOME=$FAKE_HOME "$RESUME" "${TEST_LOCAL_RESUME_ARGS[@]}" \
-        2>/dev/null
+    _run_resume 2>/dev/null
     local code=$?
     (( code == 0 )) && @fail "run_check_fail() called, but exit code is 0"
     @success "OK exit code is $code"
@@ -76,10 +79,9 @@ run_check_fail() {
 
 run_get_output() {
     declare -n _ans=$1
-    MPV=$FAKE_MPV HOME=$FAKE_HOME "$RESUME" "${TEST_LOCAL_RESUME_ARGS[@]}" \
-        >"$OUTPUT_FILE"
+    _run_resume >"$OUTPUT_FILE"
     local code=$?
-    (( code != 0 )) && @fail "non-zero exit code ${code}"
+    (( code != 0 )) && @fail "non-zero exit code $code"
     while IFS= read -rd '' line; do
         _ans+=( "$line" )
     done < "$OUTPUT_FILE"
@@ -111,27 +113,35 @@ YELLOW=$'\e[1;33m'
 RESET=$'\e[0m'
 
 get_test_funcs() {
-    source "$WORKDIR"/tests || return "$?"
+    source "$TESTS_FILE" || return "$?"
     local IFS=$'\n'
     TEST_FUNCS=(
-        $(grep -o '^@test_[a-zA-Z0-9_]\+' -- "$WORKDIR"/tests \
+        $(grep -o '^@test_[a-zA-Z0-9_]\+' "$WORKDIR"/tests \
             | grep -xFf <(declare -F | sed 's/^declare -f //')))
 }
 
 run_tests() {
-    local -i i n_failed=0 n_succeed=0 n_skipped=0
-    local state comment header test_root
+    local -i n_failed=0 n_succeed=0 n_skipped=0
+    local -i i
     for (( i = 0; i < ${#TEST_FUNCS[@]}; ++i )); do
+        # truncate file
         true > "$TEST_RESULT_FILE" || return "$?"
         echo "MPV_OPTS=()" > "$FAKE_HOME"/.resumerc || exit "$?"
+
+        # declaration and assignation must be separated to not mask exit code
+        local test_root
         test_root=$(mktemp -d) || return "$?"
         ( cd -- "$test_root" && "${TEST_FUNCS[i]}" )
         rm -rf -- "$test_root"
+
+        local state comment
         {
             IFS= read -r state
             IFS= read -r comment
         } < "$TEST_RESULT_FILE"
-        header="$(( i + 1 ))/${#TEST_FUNCS[@]} '${TEST_FUNCS[i]}'"
+
+        local header="$(( i + 1 ))/${#TEST_FUNCS[@]} '${TEST_FUNCS[i]}'"
+
         case "$state" in
             fail)
                 echo "$header ${RED}FAILED$RESET: $comment"
