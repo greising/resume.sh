@@ -67,7 +67,8 @@ set_arguments() {
 }
 
 run_check_fail() {
-    MPV=$FAKE_MPV HOME=$FAKE_HOME "$RESUME" "${TEST_LOCAL_RESUME_ARGS[@]}" 2>/dev/null
+    MPV=$FAKE_MPV HOME=$FAKE_HOME "$RESUME" "${TEST_LOCAL_RESUME_ARGS[@]}" \
+        2>/dev/null
     local code=$?
     (( code == 0 )) && @fail "run_check_fail() called, but exit code is 0"
     @success "OK exit code is $code"
@@ -75,7 +76,8 @@ run_check_fail() {
 
 run_get_output() {
     declare -n _ans=$1
-    MPV=$FAKE_MPV HOME=$FAKE_HOME "$RESUME" "${TEST_LOCAL_RESUME_ARGS[@]}" >"$OUTPUT_FILE"
+    MPV=$FAKE_MPV HOME=$FAKE_HOME "$RESUME" "${TEST_LOCAL_RESUME_ARGS[@]}" \
+        >"$OUTPUT_FILE"
     (( code != 0 )) && @fail "non-zero exit code ${code}"
     while IFS= read -rd '' line; do
         _ans+=( "$line" )
