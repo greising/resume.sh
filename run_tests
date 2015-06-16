@@ -116,7 +116,7 @@ get_test_funcs() {
     source "$TESTS_FILE" || return "$?"
     local IFS=$'\n'
     TEST_FUNCS=(
-        $(grep -o '^@test_[a-zA-Z0-9_]\+' "$WORKDIR"/tests \
+        $(grep -o '^@test_[a-zA-Z0-9_]\+' "$TESTS_FILE" \
             | grep -xFf <(declare -F | sed 's/^declare -f //')))
 }
 
