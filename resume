@@ -115,6 +115,7 @@ numeric_sort_and_apppend_to_array() {
     done < <(
         for file; do
             ret first_number extract_first_number "$file"
+            # shellcheck disable=SC2154
             printf '%s %s\0' "$first_number" "$file"
         done | sort -z -n -t' ' -k1,1)
 }
@@ -124,6 +125,7 @@ numeric_sort_and_apppend_to_array() {
 # TAKES:
 #     $1 — function name
 find_media_files() {
+    # shellcheck disable=SC2035,SC2086
     ret _MPV_FILES "$1" *.$_MEDIA_EXT_GLOB
 }
 
@@ -136,6 +138,7 @@ find_media_files() {
 find_media_files_recursively() {
     local func=$1 prefix=$2
 
+    # shellcheck disable=SC2086
     ret _MPV_FILES "$func" "$prefix"*.$_MEDIA_EXT_GLOB
 
     local -a sorted_dirs
@@ -162,7 +165,7 @@ pass_subpaths() {
     fi
     for path in "${!sub_paths_hash[@]}"; do
         if [[ $path == *"$MPV_PATH_SEP"* ]]; then
-            echo >&2 "W: sub-path “$path” contains ‘$MPV_PATH_SEP’ and thus" \
+            echo >&2 "W: sub-path '$path' contains '$MPV_PATH_SEP' and thus" \
                      "will not be passed."
             continue
         fi
@@ -188,7 +191,7 @@ generate_per_file_opts() {
         fi
         case "$file" in
             */*) prefix=${file%/*}/ ;;
-            *)   prefix= ;;
+            *)   prefix='' ;;
         esac
         for smth in "$prefix"**/*"$media_first_number"*.$extglob; do
             # Is that really a file?
@@ -208,7 +211,7 @@ generate_per_file_opts() {
         local prefix smth
         case "$file" in
             */*) prefix=${file%/*}/ ;;
-            *)   prefix= ;;
+            *)   prefix='' ;;
         esac
         # */**/… → at least 1-directory depth
         for smth in "$prefix"*/**/"${file%.*}".$extglob; do
@@ -315,7 +318,7 @@ done
 if [[ -f ~/.resumerc ]]; then
     source ~/.resumerc "${opt_profile-default}"
 elif [[ -v opt_profile ]]; then
-    echo >&2 "W: “-p” passed, but no rc file found."
+    echo >&2 "W: '-p' passed, but no rc file found."
 fi
 
 ret _SUB_EXT_GLOB   make_extension_glob "${SUB_EXTS[@]}"

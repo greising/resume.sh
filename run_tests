@@ -93,7 +93,7 @@ run_check_output() {
     local -i i
     for (( i = 0; i < ${#out[@]}; ++i )); do
         (( $# == 0 )) && @fail "found extra '${out[i]}'"
-        [[ $1 != ${out[i]} ]] && @fail "expected '$1' found '${out[i]}'"
+        [[ $1 != "${out[i]}" ]] && @fail "expected '$1' found '${out[i]}'"
         shift
     done
     (( $# != 0 )) && @fail "not found '$1'"
