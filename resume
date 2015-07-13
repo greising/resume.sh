@@ -63,7 +63,7 @@ make_extension_glob() {
 }
 
 # Removes
-#     1) trailing “/”
+#     1) all the trailing “/”
 #     2) directory
 #     3) extension
 #     4) all patterns from NON_NUMBERS
@@ -79,7 +79,7 @@ extract_first_number() {
         return
     fi
 
-    basename=${basename%/}
+    basename=${basename%%/}
     basename=${basename##*/}
     basename=${basename%.*}
 
