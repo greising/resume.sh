@@ -87,10 +87,10 @@ extract_first_number() {
         basename=${basename/$pattern/}
     done
     if [[ $basename =~ [0-9]+ ]]; then
-        # — ${…##+(0)} → drop leading zeroes
-        # — printf substitutes “0” if got an empty string with “%d”, so “0” is
-        #     substituted if all zeroes were leading
-        printf -v _ans %d "${BASH_REMATCH[0]##+(0)}"
+        # ${…##0} → drop leading zeroes
+        _ans=${BASH_REMATCH[0]##0}
+        # If all zeroes were dropped…
+        _ans=${_ans:-0}
     else
         _ans=-1
     fi
