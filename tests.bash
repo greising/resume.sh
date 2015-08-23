@@ -2,7 +2,7 @@
     setup -file-starts-with-dash.mkv
     local -a out
     run_get_output out
-    if [[ ${#out[@]} -eq 1 && ${out[0]} == $PWD/-file-starts-with-dash.mkv ]]; then
+    if (( ${#out[@]} == 1 )) && [[ ${out[0]} == $PWD/-file-starts-with-dash.mkv ]]; then
         @success "OK absolute path passed"
     else
         @fail "unexpected output '${out[*]}'"
@@ -30,7 +30,7 @@
 
 @test_recursive() {
     set_arguments -r
-    setup_run_check_output file.mkv foo/file.mkv  foo/foo/foo/foo/file.mkv
+    setup_run_check_output file.mkv foo/file.mkv foo/foo/foo/foo/file.mkv
 }
 
 @test_recursive_numsort() {
@@ -69,9 +69,9 @@
     setup foo1.mkv bar1.mkv bar2.mkv
     local -a out
     run_get_output out
-    local IFS=:
+    local IFS=' '
     case "${out[*]}" in
-        foo1.mkv:bar1.mkv:bar2.mkv|bar1.mkv:foo1.mkv:bar2.mkv)
+        'foo1.mkv bar1.mkv bar2.mkv'|'bar1.mkv foo1.mkv bar2.mkv')
             @success "OK '${out[*]}'" ;;
         *)
             @fail "unexpected output '${out[*]}'" ;;
@@ -95,9 +95,9 @@
     setup subs{1,2}/foo.ass foo.mkv
     local -a out
     run_get_output out
-    local IFS=,
+    local IFS=' '
     case "${out[*]}" in
-        --sub-paths=subs1:subs2,foo.mkv|--sub-paths=subs2:subs1,foo.mkv)
+        '--sub-paths=subs1:subs2 foo.mkv'|'--sub-paths=subs2:subs1 foo.mkv')
             @success "OK '${out[*]}'" ;;
         *)
             @fail "unexpected output '${out[*]}'" ;;
